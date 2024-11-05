@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const port = 3001;
+const port = 5003;
 var connection = null;
 var channel = null;
 
@@ -29,7 +29,7 @@ async function connectToMongoDB() {
     }
 }
 // new
-app.get('/data', async (req, res) => {
+app.get('/userinfo', async (req, res) => {
     try {
         const db = await connectToMongoDB();
         const collection = db.collection('users'); // Replace with your collection name
@@ -43,7 +43,7 @@ app.get('/data', async (req, res) => {
     }
 });
 // new
-app.get('/data/:id', async (req, res) => {
+app.get('/userinfo/:id', async (req, res) => {
     try {
         const db = await connectToMongoDB();
         const collection = db.collection('users'); // Replace with your collection name
@@ -62,7 +62,7 @@ app.get('/data/:id', async (req, res) => {
     }
 });
 
-app.post('/create', async (req, res) => {
+app.post('/userinfo/create', async (req, res) => {
     try {
         const db = await connectToMongoDB();
         const collection = db.collection('users')
@@ -80,7 +80,7 @@ app.post('/create', async (req, res) => {
     }
 });
 
-app.put('/update/:id', async (req, res) => {
+app.put('/userinfo/update/:id', async (req, res) => {
     try {
         const db = await connectToMongoDB();
         const collection = db.collection('users')
@@ -103,7 +103,7 @@ app.put('/update/:id', async (req, res) => {
     }
 });
 
-app.delete('/delete/:id', async (req, res) => {
+app.delete('/userinfo/delete/:id', async (req, res) => {
     try {
         const db = await connectToMongoDB();
         const collection = db.collection('users')
