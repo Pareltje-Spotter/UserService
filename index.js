@@ -14,7 +14,7 @@ var connection = null;
 var channel = null;
 
 // new
-const uri = "mongodb://mongoadmin:mongoadmin@mongo:27017"; // Replace with your MongoDB connection string
+const uri = "mongodb://mongoadmin:mongoadmin@localhost:27017"; // Replace with your MongoDB connection string
 const client = new MongoClient(uri,);
 
 //new
@@ -28,6 +28,12 @@ async function connectToMongoDB() {
         throw error;
     }
 }
+
+const users = [{ id: 1, name: "John" }, { id: 2, name: "Brian" }]
+
+app.get('/users', (req, res) => {
+    res.send(users)
+})
 // new
 app.get('/userinfo', async (req, res) => {
     try {
