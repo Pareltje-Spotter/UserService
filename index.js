@@ -14,7 +14,7 @@ var connection = null;
 var channel = null;
 
 // new
-const uri = "mongodb://mongoadmin:mongoadmin@localhost:27017"; // Replace with your MongoDB connection string
+const uri = "mongodb://mongoadmin:mongoadmin@mongo:27017"; // Replace with your MongoDB connection string
 const client = new MongoClient(uri,);
 
 //new
