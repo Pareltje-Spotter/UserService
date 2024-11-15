@@ -23,4 +23,4 @@ jobs:
           --tag niels040/pareltje-spotter:latest-userservice
       
       - name: Push to registry
-        run: sudo docker push niels040/pareltje-spotter:latest-admin
+        run: sudo docker push niels040/pareltje-spotter:latest-userservice
