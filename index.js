@@ -1,5 +1,6 @@
 const express = require('express')
 const cors = require('cors');
+const pool = require('./db.js');
 // new
 const MongoClient = require('mongodb').MongoClient;
 const ObjectID = require('mongodb').ObjectId;
@@ -17,120 +18,114 @@ var channel = null;
 const uri = "mongodb://mongoadmin:mongoadmin@mongo:27017"; // Replace with your MongoDB connection string
 const client = new MongoClient(uri,);
 
-//new
-async function connectToMongoDB() {
-    try {
-        await client.connect();
-        console.log('Connected to MongoDB successfully!');
-        return client.db('userInfo'); // Replace with your database name
-    } catch (error) {
-        console.error('Error connecting to MongoDB:', error);
-        throw error;
-    }
-}
+//////////////////////////
 
 const users = [{ id: 1, name: "John" }, { id: 2, name: "Brian" }]
 
-app.get('/users', (req, res) => {
+app.get('/users', async (req, res) => {
     res.send(users)
 })
-// new
+
+//////////////////////////
+
+app.get('/setup', async (req, res) => {
+    try {
+        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100))')
+        res.status(200).send({ message: "Successfully created table" })
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+})
+
+app.post('/userinfo/create', async (req, res) => {
+    const { name, email } = req.body;
+    try {
+        await pool.query('INSERT INTO userinfo (name, email) VALUES ($1, $2)', [name, email]);
+        res.status(200).send({ message: "Successfully created child" })
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+})
+
 app.get('/userinfo', async (req, res) => {
     try {
-        const db = await connectToMongoDB();
-        const collection = db.collection('users'); // Replace with your collection name
-
-        // Perform database operations, e.g., find documents
-        const data = await collection.find().toArray();
-
-        res.json(data);
+        const result = await pool.query('SELECT * FROM userinfo');
+        res.json(result.rows);
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
+
 // new
 app.get('/userinfo/:id', async (req, res) => {
+    const { id } = req.params;
     try {
-        const db = await connectToMongoDB();
-        const collection = db.collection('users'); // Replace with your collection name
-
-        const id = req.params.id; // Get the ID from the request parameters
-        // Find the document by ID
-        const data = await collection.findOne({ _id: new ObjectID(id) });
-
-        if (data) {
-            res.json(data);
-        } else {
-            res.status(404).json({ error: 'Document not found' });
+        const result = await pool.query('SELECT * FROM userinfo WHERE id = $1', [id]);
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'User not found' }); // Handle not found
+        }
+        else {
+            res.json(result.rows);
         }
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
 
-app.post('/userinfo/create', async (req, res) => {
-    try {
-        const db = await connectToMongoDB();
-        const collection = db.collection('users')
-
-        const newData = {
-            name: req.body.name,
-            email: req.body.email,
-        };
-        const result = await collection.insertOne(newData);
-
-        res.status(201).json({ message: 'Document created successfully', data: result.insertedId });
-    } catch (error) {
-        console.error('Error creating document:', error);
-        res.status(500).json({ error: 'Failed to create document' });
-    }
-});
 
 app.put('/userinfo/update/:id', async (req, res) => {
     try {
-        const db = await connectToMongoDB();
-        const collection = db.collection('users')
+        const { id } = req.params;
+        const { name, email } = req.body;
 
-        const id = req.params.id;
-        const updatedData = req.body;
-
-        const result = await collection.updateOne({ _id: new ObjectID(id) }, { $set: updatedData });
-
-        if (result.modifiedCount === 0) {
-            res.status(404).json({ error: 'Document not found' });
-        } else {
-            res.json({ message: 'Document updated successfully' });
+        // Validate input
+        if (!name || !email) {
+            res.status(400).json({ error: 'Name and email are required' });
         }
+
+        try {
+            const result = await pool.query(
+                'UPDATE userinfo SET name = $1, email = $2 WHERE id = $3 RETURNING *',
+                [name, email, id]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            res.json(result.rows[0]);
+
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send('Server error');
+        }
+
     } catch (error) {
-        console.error('Error updating document:', error);
-        res.status(500).json({
-            error: 'Failed to update document'
-        });
+        res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
 
 app.delete('/userinfo/delete/:id', async (req, res) => {
+    const { id } = req.params; // Extract the id from the route parameter
     try {
-        const db = await connectToMongoDB();
-        const collection = db.collection('users')
+        // Delete the user from the database
+        const result = await pool.query('DELETE FROM userinfo WHERE id = $1 RETURNING *', [id]);
 
-        const id = req.params.id;
-
-        // Delete the document
-        const result = await collection.deleteOne({ _id: new ObjectID(id) });
-
-        if (result.deletedCount === 0) {
-            res.status(404).json({ error: 'Document not found' });
-        } else {
-            res.json({ message: 'Document deleted successfully' });
+        if (result.rows.length === 0) {
+            // If no user is found with that id
+            return res.status(404).json({ error: 'User not found' });
         }
-    } catch (error) {
-        console.error('Error deleting document:', error);
-        res.status(500).json({
-            error: 'Failed to delete document'
-        });
+
+        // Return a success message along with the deleted user data
+        res.json({ message: 'User deleted successfully', user: result.rows[0] });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
     }
 });
+
 
 
 app.listen(port, () => {

@@ -1,0 +1,16 @@
+version: '3'
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: userinfo
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgressdata:/data/db
+  
+volumes:
+  postgressdata:
+    driver: local
