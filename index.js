@@ -2,8 +2,6 @@ const express = require('express')
 const cors = require('cors');
 const pool = require('./db.js');
 // new
-const MongoClient = require('mongodb').MongoClient;
-const ObjectID = require('mongodb').ObjectId;
 
 const app = express()
 app.use(cors());
@@ -14,16 +12,12 @@ const port = 5003;
 var connection = null;
 var channel = null;
 
-// new
-const uri = "mongodb://mongoadmin:mongoadmin@mongo:27017"; // Replace with your MongoDB connection string
-const client = new MongoClient(uri,);
-
 //////////////////////////
 
 const users = [{ id: 1, name: "John" }, { id: 2, name: "Brian" }]
 
 app.get('/users', async (req, res) => {
-    res.send(users)
+    return res.send(users)
 })
 
 //////////////////////////
