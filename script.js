@@ -11,7 +11,7 @@ export const options = {
 }
 
 export default function () {
-    const res = http.get( 'http://127.0.0.1:5003/users');
+    const res = http.get( 'http://127.0.0.1:5003/userinfo');
     check(res, {
         'status was 200': (r) => r.status == 200,
         'response was < 2000ms (2s)': (r) => r.timings.duration < 2000,
