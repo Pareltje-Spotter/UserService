@@ -148,3 +148,4 @@ dist
 # End of https://www.toptal.com/developers/gitignore/api/node
 key.json
 test.rest
+userRequests.http

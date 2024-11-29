@@ -16,3 +16,12 @@ const pool = new Pool({
 // password: process.env.POSTGRES_PASSWORD || 'admin', 
 // database: process.env.POSTGRES_DB || 'userinfo', 
 module.exports = pool;
+
+// const pool = new Pool({
+//     host: 'localhost',
+//     port: 5432,
+//     user: 'user',
+//     password: 'admin',
+//     database: 'userinfo',
+//   });
+//   module.exports = pool;

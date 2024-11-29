@@ -1,6 +1,7 @@
 const express = require('express')
 const cors = require('cors');
 const pool = require('./db.js');
+const amqplib = require('amqplib')
 // new
 
 const app = express()
@@ -11,6 +12,63 @@ app.use(express.urlencoded({ extended: true }));
 const port = 5003;
 var connection = null;
 var channel = null;
+
+
+const getById = async (id) => {
+    try {
+        const result = await pool.query('SELECT * FROM userinfo WHERE id = $1', [id]);
+        if (result.rows.length !== 0) {
+            console.log(result.rows[0]) // Handle not found
+            return result.rows[0];
+        }
+
+    } catch (error) {
+        console.log("error: " + error)
+        return null;
+        // res.status(500).json({ error: 'Failed to fetch data' });
+    }
+
+}
+
+async function messageConsumer() {
+    connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@rabbitmq')
+    // connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@localhost')
+    channel = await connection.createChannel()
+
+    var queue = 'userQueue';
+
+    channel.assertQueue(queue, {
+        durable: false
+    });
+
+    channel.prefetch(1);
+    // console.log(' [x] Awaiting RPC requests');
+    channel.consume(queue, async function reply(msg) {
+
+        console.log(`received: ${msg.content.toString()}`);
+ 
+        const delivery = await getById(parseInt(msg.content));
+        
+        // Check if document exists
+        if (delivery == null) {
+            responseMessage = { error: 'Car not found' };
+        } else {
+            console.log(delivery)
+            responseMessage = delivery;
+        }
+
+        await channel.sendToQueue(msg.properties.replyTo,
+            Buffer.from(JSON.stringify(responseMessage)), {
+            correlationId: msg.properties.correlationId
+        });
+
+        console.log(`Sent: ${JSON.stringify(responseMessage)}`);
+
+        channel.ack(msg);
+    });
+}
+messageConsumer();
+
 
 //////////////////////////
 
