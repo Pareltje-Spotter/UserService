@@ -1,4 +1,4 @@
-name: Build
+name: Sonarqube Scan
 on:
   push:
   pull_request:
