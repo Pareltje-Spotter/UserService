@@ -2,6 +2,9 @@ const express = require('express')
 const cors = require('cors');
 const pool = require('./db.js');
 const amqplib = require('amqplib')
+require('dotenv').config(); // Load .env file
+
+
 // new
 
 const app = express()
@@ -31,8 +34,7 @@ const getById = async (id) => {
 }
 
 async function messageConsumer() {
-    connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@rabbitmq')
-    // connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@localhost')
+    connection = await amqplib.connect(`amqp://${process.env.RABBIT_USERNAME}:${process.env.RABBIT_PASSWORD}@${process.env.RABBIT_HOST || 'rabbitmq'}`)
     channel = await connection.createChannel()
 
     var queue = 'userQueue';
@@ -46,9 +48,9 @@ async function messageConsumer() {
     channel.consume(queue, async function reply(msg) {
 
         console.log(`received: ${msg.content.toString()}`);
- 
+
         const delivery = await getById(parseInt(msg.content));
-        
+
         // Check if document exists
         if (delivery == null) {
             responseMessage = { error: 'Car not found' };
