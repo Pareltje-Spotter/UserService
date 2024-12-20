@@ -134,22 +134,38 @@ app.get('/userinfo/user/:id', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM userinfo WHERE uuid = $1', [id]);
         if (result.rows.length === 0) {
-            // res.status(404).json({ error: 'User not found' }); // Handle not found
-            try {
-                const newuser = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
-                res.status(201).send(newuser.rows[0])
-            } catch (err) {
-                console.error(err.message);
-                res.status(500).send('Server error');
-            }
+            res.status(404).json({ error: 'User not found' }); // Handle not found
         }
         else {
-            res.json(result.rows);
+            res.status(200).json(result.rows);
         }
     } catch (error) {
         res.status(500).json({ error: 'Failed to fetch data' });
     }
 });
+
+// app.get('/userinfo/user/:id', async (req, res) => {
+//     const { id } = req.params;
+//     const { name, uuid } = req.body;
+//     try {
+//         const result = await pool.query('SELECT * FROM userinfo WHERE uuid = $1', [id]);
+//         if (result.rows.length === 0) {
+//             // res.status(404).json({ error: 'User not found' }); // Handle not found
+//             try {
+//                 const newuser = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
+//                 res.status(201).send(newuser.rows[0])
+//             } catch (err) {
+//                 console.error(err.message);
+//                 res.status(500).send('Server error');
+//             }
+//         }
+//         else {
+//             res.json(result.rows);
+//         }
+//     } catch (error) {
+//         res.status(500).json({ error: 'Failed to fetch data' });
+//     }
+// });
 
 
 app.put('/userinfo/update/:id', async (req, res) => {
