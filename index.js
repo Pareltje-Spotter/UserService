@@ -69,7 +69,7 @@ async function messageConsumer() {
         channel.ack(msg);
     });
 }
-messageConsumer();
+// messageConsumer();
 
 
 //////////////////////////
@@ -95,8 +95,8 @@ app.get('/setup', async (req, res) => {
 app.post('/userinfo/create', async (req, res) => {
     const { name, uuid } = req.body;
     try {
-        await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2)', [name, uuid]);
-        res.status(200).send({ message: "Successfully created child" })
+        const result = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
+        res.status(200).send({ message: "Successfully created child" , user: result.rows[0]});
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
