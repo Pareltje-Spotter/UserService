@@ -84,7 +84,7 @@ app.get('/users', async (req, res) => {
 
 app.get('/setup', async (req, res) => {
     try {
-        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100))')
+        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), uuid VARCHAR(100))')
         res.status(200).send({ message: "Successfully created table" })
     } catch (err) {
         console.error(err.message);
@@ -93,9 +93,9 @@ app.get('/setup', async (req, res) => {
 })
 
 app.post('/userinfo/create', async (req, res) => {
-    const { name, email } = req.body;
+    const { name, uuid } = req.body;
     try {
-        await pool.query('INSERT INTO userinfo (name, email) VALUES ($1, $2)', [name, email]);
+        await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2)', [name, uuid]);
         res.status(200).send({ message: "Successfully created child" })
     } catch (err) {
         console.error(err.message);
@@ -128,21 +128,44 @@ app.get('/userinfo/:id', async (req, res) => {
     }
 });
 
+app.get('/userinfo/user/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, uuid } = req.body;
+    try {
+        const result = await pool.query('SELECT * FROM userinfo WHERE uuid = $1', [id]);
+        if (result.rows.length === 0) {
+            // res.status(404).json({ error: 'User not found' }); // Handle not found
+            try {
+                const newuser = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
+                res.status(201).send(newuser.rows[0])
+            } catch (err) {
+                console.error(err.message);
+                res.status(500).send('Server error');
+            }
+        }
+        else {
+            res.json(result.rows);
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch data' });
+    }
+});
+
 
 app.put('/userinfo/update/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email } = req.body;
+        const { name, email: uuid } = req.body;
 
         // Validate input
-        if (!name || !email) {
-            res.status(400).json({ error: 'Name and email are required' });
+        if (!name || !uuid) {
+            res.status(400).json({ error: 'Name and uuid are required' });
         }
 
         try {
             const result = await pool.query(
-                'UPDATE userinfo SET name = $1, email = $2 WHERE id = $3 RETURNING *',
-                [name, email, id]
+                'UPDATE userinfo SET name = $1, uuid = $2 WHERE id = $3 RETURNING *',
+                [name, uuid, id]
             );
 
             if (result.rows.length === 0) {
