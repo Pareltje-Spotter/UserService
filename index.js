@@ -33,6 +33,45 @@ const getById = async (id) => {
 
 }
 
+
+
+const QUEUE_NAME = 'user-deletion';
+
+// Initialize RabbitMQ connection
+async function initRabbitMQ() {
+    try {
+        const connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@rabbitmq');
+        channel = await connection.createChannel();
+        await channel.assertQueue(QUEUE_NAME, { durable: true });
+        console.log('RabbitMQ connected and queue asserted:', QUEUE_NAME);
+    } catch (error) {
+        console.error('Failed to initialize RabbitMQ:', error);
+        process.exit(1);
+    }
+}
+
+// Function to send a message to the RabbitMQ queue
+
+async function sendUserDeletionMessage(userId) {
+    try {
+        const message = JSON.stringify({ userId });
+        channel.sendToQueue(QUEUE_NAME, Buffer.from(message), { persistent: true });
+        console.log('Sent message to RabbitMQ:', message);
+    } catch (error) {
+        console.error('Failed to send message to RabbitMQ:', error);
+    }
+}
+
+
+
+// Initialize RabbitMQ and start the server
+// const PORT = 3000;
+// app.listen(PORT, async () => {
+//     console.log(`Server is running on port ${PORT}`);
+//     await initRabbitMQ();
+// });
+
+
 async function messageConsumer() {
     connection = await amqplib.connect(`amqp://${process.env.RABBIT_USERNAME}:${process.env.RABBIT_PASSWORD}@${process.env.RABBIT_HOST || 'rabbitmq'}`)
     channel = await connection.createChannel()
@@ -69,7 +108,7 @@ async function messageConsumer() {
         channel.ack(msg);
     });
 }
-// messageConsumer();
+messageConsumer();
 
 
 //////////////////////////
@@ -96,7 +135,7 @@ app.post('/userinfo/create', async (req, res) => {
     const { name, uuid } = req.body;
     try {
         const result = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
-        res.status(200).send({ message: "Successfully created child" , user: result.rows[0]});
+        res.status(200).send({ message: "Successfully created child", user: result.rows[0] });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -211,6 +250,8 @@ app.delete('/userinfo/delete/:id', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        await sendUserDeletionMessage(id);
+
         // Return a success message along with the deleted user data
         res.json({ message: 'User deleted successfully', user: result.rows[0] });
     } catch (err) {
@@ -221,6 +262,7 @@ app.delete('/userinfo/delete/:id', async (req, res) => {
 
 
 
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`Server listening on port ${port}`);
+    await initRabbitMQ();
 });
