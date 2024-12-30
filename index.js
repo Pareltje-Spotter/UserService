@@ -68,7 +68,7 @@ async function messageConsumer() {
         channel.ack(msg);
     });
 }
-messageConsumer();
+// messageConsumer();
 
 
 //////////////////////////
@@ -86,7 +86,7 @@ app.get('/setup', async (req, res) => {
         await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100))')
         res.status(200).send({ message: "Successfully created table" })
     } catch (err) {
-        console.error(err.message);
+        console.error(err);
         res.status(500).send('Server error');
     }
 })
