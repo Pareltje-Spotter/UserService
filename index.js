@@ -86,6 +86,7 @@ app.get('/setup', async (req, res) => {
         await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100))')
         res.status(200).send({ message: "Successfully created table" })
     } catch (err) {
+        console.error("test");
         console.error(err);
         res.status(500).send('Server error');
     }
