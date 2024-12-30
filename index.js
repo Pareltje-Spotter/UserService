@@ -88,7 +88,7 @@ app.get('/setup', async (req, res) => {
     } catch (err) {
         console.error("test");
         console.error(err);
-        res.status(500).send('Server error');
+        res.status(500).send(err);
     }
 })
 
