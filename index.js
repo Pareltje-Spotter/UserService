@@ -179,9 +179,6 @@ app.delete('/userinfo/delete/:id', async (req, res) => {
     }
 });
 
-
-console.log(process.env.EXAMPLE_SECRET_PASSWORD || "nothere");
-
 app.listen(port, () => {
     console.log(`Server listening on port ${port}`);
 });
