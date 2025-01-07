@@ -2,7 +2,9 @@ const express = require('express')
 const cors = require('cors');
 const pool = require('./db.js');
 const amqplib = require('amqplib')
-require('dotenv').config();
+require('dotenv').config(); // Load .env file
+
+
 // new
 
 const app = express()
@@ -31,9 +33,47 @@ const getById = async (id) => {
 
 }
 
+
+
+const QUEUE_NAME = 'user-deletion';
+
+// Initialize RabbitMQ connection
+async function initRabbitMQ() {
+    try {
+        const connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@rabbitmq');
+        channel = await connection.createChannel();
+        await channel.assertQueue(QUEUE_NAME, { durable: true });
+        console.log('RabbitMQ connected and queue asserted:', QUEUE_NAME);
+    } catch (error) {
+        console.error('Failed to initialize RabbitMQ:', error);
+        process.exit(1);
+    }
+}
+
+// Function to send a message to the RabbitMQ queue
+
+async function sendUserDeletionMessage(userId) {
+    try {
+        const message = JSON.stringify({ userId });
+        channel.sendToQueue(QUEUE_NAME, Buffer.from(message), { persistent: true });
+        console.log('Sent message to RabbitMQ:', message);
+    } catch (error) {
+        console.error('Failed to send message to RabbitMQ:', error);
+    }
+}
+
+
+
+// Initialize RabbitMQ and start the server
+// const PORT = 3000;
+// app.listen(PORT, async () => {
+//     console.log(`Server is running on port ${PORT}`);
+//     await initRabbitMQ();
+// });
+
+
 async function messageConsumer() {
-    connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@rabbitmq')
-    // connection = await amqplib.connect('amqp://rabbitmq:rabbitmq@localhost')
+    connection = await amqplib.connect(`amqp://${process.env.RABBIT_USERNAME}:${process.env.RABBIT_PASSWORD}@${process.env.RABBIT_HOST || 'rabbitmq'}`)
     channel = await connection.createChannel()
 
     var queue = 'userQueue';
@@ -47,9 +87,9 @@ async function messageConsumer() {
     channel.consume(queue, async function reply(msg) {
 
         console.log(`received: ${msg.content.toString()}`);
- 
+
         const delivery = await getById(parseInt(msg.content));
-        
+
         // Check if document exists
         if (delivery == null) {
             responseMessage = { error: 'Car not found' };
@@ -68,7 +108,7 @@ async function messageConsumer() {
         channel.ack(msg);
     });
 }
-// messageConsumer();
+messageConsumer();
 
 
 //////////////////////////
@@ -83,20 +123,19 @@ app.get('/users', async (req, res) => {
 
 app.get('/setup', async (req, res) => {
     try {
-        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), email VARCHAR(100))')
+        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), uuid VARCHAR(100))')
         res.status(200).send({ message: "Successfully created table" })
     } catch (err) {
-        console.error("test");
-        console.error(err);
-        res.status(500).send(err);
+        console.error(err.message);
+        res.status(500).send('Server error');
     }
 })
 
 app.post('/userinfo/create', async (req, res) => {
-    const { name, email } = req.body;
+    const { name, uuid } = req.body;
     try {
-        await pool.query('INSERT INTO userinfo (name, email) VALUES ($1, $2)', [name, email]);
-        res.status(200).send({ message: "Successfully created child" })
+        const result = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
+        res.status(200).send({ message: "Successfully created child", user: result.rows[0] });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');
@@ -128,21 +167,60 @@ app.get('/userinfo/:id', async (req, res) => {
     }
 });
 
+app.get('/userinfo/user/:id', async (req, res) => {
+    const { id } = req.params;
+    const { name, uuid } = req.body;
+    try {
+        const result = await pool.query('SELECT * FROM userinfo WHERE uuid = $1', [id]);
+        if (result.rows.length === 0) {
+            res.status(404).json({ error: 'User not found' }); // Handle not found
+        }
+        else {
+            res.status(200).json(result.rows);
+        }
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to fetch data' });
+    }
+});
+
+// app.get('/userinfo/user/:id', async (req, res) => {
+//     const { id } = req.params;
+//     const { name, uuid } = req.body;
+//     try {
+//         const result = await pool.query('SELECT * FROM userinfo WHERE uuid = $1', [id]);
+//         if (result.rows.length === 0) {
+//             // res.status(404).json({ error: 'User not found' }); // Handle not found
+//             try {
+//                 const newuser = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
+//                 res.status(201).send(newuser.rows[0])
+//             } catch (err) {
+//                 console.error(err.message);
+//                 res.status(500).send('Server error');
+//             }
+//         }
+//         else {
+//             res.json(result.rows);
+//         }
+//     } catch (error) {
+//         res.status(500).json({ error: 'Failed to fetch data' });
+//     }
+// });
+
 
 app.put('/userinfo/update/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email } = req.body;
+        const { name, email: uuid } = req.body;
 
         // Validate input
-        if (!name || !email) {
-            res.status(400).json({ error: 'Name and email are required' });
+        if (!name || !uuid) {
+            res.status(400).json({ error: 'Name and uuid are required' });
         }
 
         try {
             const result = await pool.query(
-                'UPDATE userinfo SET name = $1, email = $2 WHERE id = $3 RETURNING *',
-                [name, email, id]
+                'UPDATE userinfo SET name = $1, uuid = $2 WHERE id = $3 RETURNING *',
+                [name, uuid, id]
             );
 
             if (result.rows.length === 0) {
@@ -172,6 +250,8 @@ app.delete('/userinfo/delete/:id', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        await sendUserDeletionMessage(id);
+
         // Return a success message along with the deleted user data
         res.json({ message: 'User deleted successfully', user: result.rows[0] });
     } catch (err) {
@@ -180,6 +260,9 @@ app.delete('/userinfo/delete/:id', async (req, res) => {
     }
 });
 
-app.listen(port, () => {
+
+
+app.listen(port, async () => {
     console.log(`Server listening on port ${port}`);
+    await initRabbitMQ();
 });
