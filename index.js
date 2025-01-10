@@ -188,6 +188,7 @@ app.get('/userinfo/user/:id', async (req, res) => {
 
 const roleCheck = async (id) => {
     try {
+        console.log(id)
         const result = await pool.query('SELECT role FROM userinfo WHERE id = $1', [id]);
 
         if (result.rows.length === 0) {
