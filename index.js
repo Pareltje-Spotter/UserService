@@ -194,7 +194,8 @@ const roleCheck = async (id) => {
         if (result.rows.length === 0) {
             return false;
         }
-        if (result.rows[0].role === 'admin') {
+        console.log(result.rows[0].role)
+        if (result.rows[0].role == 'admin') {
             return true;
         } else {
             return false;
@@ -215,7 +216,8 @@ app.put('/userinfo/update/:id', async (req, res) => {
         if (!name || !uuid) {
             res.status(400).json({ error: 'Name and uuid are required' });
         }
-        if (roleCheck(requestId) == true) {
+
+        if (await roleCheck(requestId) == true) {
             try {
                 const result = await pool.query(
                     'UPDATE userinfo SET name = $1, uuid = $2, role = $3 WHERE id = $4 RETURNING *',
@@ -233,7 +235,7 @@ app.put('/userinfo/update/:id', async (req, res) => {
                 res.status(500).send('Server error');
             }
         }
-        else{
+        else {
             res.status(500).json({ error: 'user not authorized to do this action' });
         }
     } catch (error) {
@@ -243,23 +245,30 @@ app.put('/userinfo/update/:id', async (req, res) => {
 
 app.delete('/userinfo/delete/:id', async (req, res) => {
     const { id } = req.params; // Extract the id from the route parameter
-    try {
-        // Delete the user from the database
-        const result = await pool.query('DELETE FROM userinfo WHERE id = $1 RETURNING *', [id]);
+    const { requestId } = req.body;
+    if (await roleCheck(requestId) == true) {
+        try {
+            // Delete the user from the database
+            const result = await pool.query('DELETE FROM userinfo WHERE id = $1 RETURNING *', [id]);
 
-        if (result.rows.length === 0) {
-            // If no user is found with that id
-            return res.status(404).json({ error: 'User not found' });
+            if (result.rows.length === 0) {
+                // If no user is found with that id
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            await sendUserDeletionMessage(id);
+
+            // Return a success message along with the deleted user data
+            res.json({ message: 'User deleted successfully', user: result.rows[0] });
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send('Server error');
         }
-
-        await sendUserDeletionMessage(id);
-
-        // Return a success message along with the deleted user data
-        res.json({ message: 'User deleted successfully', user: result.rows[0] });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
     }
+    else {
+        res.status(500).json({ error: 'user not authorized to do this action' });
+    }
+
 });
 
 
