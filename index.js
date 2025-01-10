@@ -215,7 +215,7 @@ app.put('/userinfo/update/:id', async (req, res) => {
         if (!name || !uuid) {
             res.status(400).json({ error: 'Name and uuid are required' });
         }
-        if (roleCheck(requestId)) {
+        if (roleCheck(requestId) == true) {
             try {
                 const result = await pool.query(
                     'UPDATE userinfo SET name = $1, uuid = $2, role = $3 WHERE id = $4 RETURNING *',
