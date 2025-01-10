@@ -123,7 +123,7 @@ app.get('/users', async (req, res) => {
 
 app.get('/setup', async (req, res) => {
     try {
-        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), uuid VARCHAR(100))')
+        await pool.query('CREATE TABLE userinfo(id SERIAL PRIMARY KEY, name VARCHAR(100), uuid VARCHAR(100), role VARCHAR(100))')
         res.status(200).send({ message: "Successfully created table" })
     } catch (err) {
         console.error(err.message);
@@ -132,9 +132,9 @@ app.get('/setup', async (req, res) => {
 })
 
 app.post('/userinfo/create', async (req, res) => {
-    const { name, uuid } = req.body;
+    const { name, uuid, role } = req.body;
     try {
-        const result = await pool.query('INSERT INTO userinfo (name, uuid) VALUES ($1, $2) RETURNING *', [name, uuid]);
+        const result = await pool.query('INSERT INTO userinfo (name, uuid, role) VALUES ($1, $2, $3) RETURNING *', [name, uuid, role]);
         res.status(200).send({ message: "Successfully created child", user: result.rows[0] });
     } catch (err) {
         console.error(err.message);
@@ -210,7 +210,7 @@ app.get('/userinfo/user/:id', async (req, res) => {
 app.put('/userinfo/update/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, email: uuid } = req.body;
+        const { name, uuid, role } = req.body;
 
         // Validate input
         if (!name || !uuid) {
@@ -219,8 +219,8 @@ app.put('/userinfo/update/:id', async (req, res) => {
 
         try {
             const result = await pool.query(
-                'UPDATE userinfo SET name = $1, uuid = $2 WHERE id = $3 RETURNING *',
-                [name, uuid, id]
+                'UPDATE userinfo SET name = $1, uuid = $2, role = $3 WHERE id = $4 RETURNING *',
+                [name, uuid, role, id]
             );
 
             if (result.rows.length === 0) {
