@@ -216,8 +216,25 @@ app.put('/userinfo/update/:id', async (req, res) => {
         if (!name || !uuid) {
             res.status(400).json({ error: 'Name and uuid are required' });
         }
+        if (id == requestId) {
+            try {
+                const result = await pool.query(
+                    'UPDATE userinfo SET name = $1, uuid = $2, role = $3 WHERE id = $4 RETURNING *',
+                    [name, uuid, role, id]
+                );
 
-        if (await roleCheck(requestId) == true) {
+                if (result.rows.length === 0) {
+                    return res.status(404).json({ error: 'User not found' });
+                }
+
+                res.json(result.rows[0]);
+
+            } catch (err) {
+                console.error(err.message);
+                res.status(500).send('Server error');
+            }
+        }
+        else if (await roleCheck(requestId) == true) {
             try {
                 const result = await pool.query(
                     'UPDATE userinfo SET name = $1, uuid = $2, role = $3 WHERE id = $4 RETURNING *',
@@ -246,7 +263,26 @@ app.put('/userinfo/update/:id', async (req, res) => {
 app.delete('/userinfo/delete/:id', async (req, res) => {
     const { id } = req.params; // Extract the id from the route parameter
     const { requestId } = req.body;
-    if (await roleCheck(requestId) == true) {
+    if (id == requestId) {
+        try {
+            // Delete the user from the database
+            const result = await pool.query('DELETE FROM userinfo WHERE id = $1 RETURNING *', [id]);
+
+            if (result.rows.length === 0) {
+                // If no user is found with that id
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            await sendUserDeletionMessage(id);
+
+            // Return a success message along with the deleted user data
+            res.json({ message: 'User deleted successfully', user: result.rows[0] });
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send('Server error');
+        }
+    }
+    else if (await roleCheck(requestId) == true) {
         try {
             // Delete the user from the database
             const result = await pool.query('DELETE FROM userinfo WHERE id = $1 RETURNING *', [id]);
